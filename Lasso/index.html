@@ -6,8 +6,8 @@
     <title>webgl_lasso_tool</title>
 </head>
 
-<body>
-    <canvas id="webgl" width="800" height="600"></canvas>
+<body >
+    <canvas id="webgl" width="800" height="800"></canvas>
     <script src="./gl-matrix.js"></script>
     <script src="https://webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
     <script src="https://webglfundamentals.org/webgl/resources/m4.js"></script>
@@ -17,7 +17,7 @@
         var lineProgram = null;
         var modelViewMatrix = glMatrix.mat4.create();
         var projectionMatrix = glMatrix.mat4.create();
-        glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
+        glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100); // 如果不做这个，那么绘图范围不能投影到整个canvas， 就只有第一象限。
         var bgImageBuffer = null;
         var uBrightness;
 
@@ -38,7 +38,7 @@
 
             let VSHADER_SOURCE =
                 `
-            precision lowp float;
+
             attribute vec4 aPosition;
             uniform mat4 uModelViewMatrix;
             uniform mat4 uProjectionMatrix;
@@ -112,26 +112,13 @@
             //     gl.deleteBuffer(selectionAreaBuffer);
             // }
             selectionAreaBuffer = createBuffer(new Float32Array([
-                0.5, 0.5,
-                0.3, 0.5,
-                0.4, 0.7,
-                0.5, 0.75,
-                0.6, 0.65,
-                0.7, 0.5,
-                0.5, 0.2,
-                0.3, 0.5
+               
             ]));
             // if (selectionLineBuffer) {
             //     gl.deleteBuffer(selectionLineBuffer);
             // }
             selectionLineBuffer = createBuffer(new Float32Array([
-                0.3, 0.5,
-                0.4, 0.7,
-                0.5, 0.75,
-                0.6, 0.65,
-                0.7, 0.5,
-                0.5, 0.2,
-                0.3, 0.5
+              
             ]));
 
             renderLoop();
@@ -142,7 +129,7 @@
         function convertMouseLocation(x, y) {
             return {
                 x: x / 800,
-                y: (1 - y / 600)
+                y: (1 - y / 800)
             };
         }
 
