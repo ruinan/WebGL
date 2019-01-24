@@ -12,7 +12,7 @@ function main() {
     // 初始化一些矩阵，将来用来赋值
     var modelViewMatrix = glMatrix.mat4.create();
     var projectionMatrix = glMatrix.mat4.create();
-    glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100); 
+    glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
 
     // 初始化线条的顶点着色器
     const LineVertexSource = `
@@ -33,7 +33,6 @@ function main() {
         }
     `;
 
-   
     // 初始化 线条program
     const lineProgram = initiateProgram(
         gl,
@@ -54,7 +53,6 @@ function main() {
     );
     gl.uniformMatrix4fv(uModelVeiwMatrix, false, modelViewMatrix);
 
-    
     // 初始化
     const TextureVertexSource = `
         attribute vec4 aPosition;
@@ -89,42 +87,64 @@ function main() {
     ); // create the line program
     gl.useProgram(textureProgram);
 
-    uProjectionMatrix = gl.getUniformLocation(textureProgram, "uProjectionMatrix"); // get the location
-    gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);// pass the value
+    uProjectionMatrix = gl.getUniformLocation(
+        textureProgram,
+        'uProjectionMatrix'
+    ); // get the location
+    gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix); // pass the value
 
-    uModelViewMatrix = gl.getUniformLocation(textureProgram, "uModelViewMatrix");
+    uModelViewMatrix = gl.getUniformLocation(
+        textureProgram,
+        'uModelViewMatrix'
+    );
     gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
 
-    uBrightness = gl.getUniformLocation(textureProgram, "brightness");
+    uBrightness = gl.getUniformLocation(textureProgram, 'brightness');
 
     gl.disable(gl.DEPTH_TEST);
 
     initTexture(gl, textureProgram);
-
 }
 
 function initTexture(gl, textureProgram) {
-    const sampler = gl.getUniformLocation(textureProgram, "texture");
-    const texture = gl.createTexture();
+    let texture = gl.createTexture();
+    let sampler = gl.getUniformLocation(textureProgram, 'texture');
 
-    const image = new Image();
-    const url = 'https://www.gettyimages.com/gi-resources/images/CreativeLandingPage/HP_Sept_24_2018/CR3_GettyImages-159018836.jpg';
-    requestCORSIfNotSameOrigin(image, url);
-    image.src = url;
-
+    let image = new Image();
     image.onload = function() {
         gl.useProgram(textureProgram);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // 反转y轴，因为图片坐标轴和webgl的不一样。
-        gl.activeTexture(gl.TEXTURE0); // 激活一个texture
-        gl.bindTexture(gl.TEXTURE_2D, texture); // 绑定图片到纹理上，
-    }
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGB,
+            gl.RGB,
+            gl.UNSIGNED_BYTE,
+            image
+        );
+        gl.uniform1i(sampler, 0);
+        bgImageBuffer = createBuffer(gl,
+            new Float32Array([0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0])
+        );
+    };
+    const url = './test.jpg';
+    image.src = url;
 }
 
-function requestCORSIfNotSameOrigin(img, url) {
-    if ((new URL(url)).origin !== window.location.origin) {
-        img.crossOrigin = "";
-    }
+function createBuffer(gl, vertices) {
+    const buffer = gl.createBuffer();
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    buffer.elementSize = vertices.BYTES_PER_ELEMENT;
+    buffer.elementCount = vertices.length / 2;
+
+    return buffer;
 }
 
 function initiateProgram(gl, vertexSource, fragmentSource) {
