@@ -139,7 +139,7 @@
 
         var selectionPoints = null;
 
-        function updateBrightness() {
+        function updateBrightness(value) {
             return function (event, ui) {
                 brightness = ui.value;
             };
@@ -320,6 +320,12 @@
             window.setTimeout(renderLoop, 1000 / 60);
 
         }
+
+        function resetBrightness() {
+            brightness = 0.0;
+            updateBrightness(0.0);
+        }
+
     </script>
 </head>
 
@@ -330,6 +336,7 @@
             <div id="brightness"></div>
         </div>
     </div>
+    <button id="reset" onclick="resetBrightness()">Reset</button>
 </body>
 
 </html>
