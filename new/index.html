@@ -8,7 +8,7 @@
     <title>Rui Nan - Lasso Tool</title>
     <style>
         body {
-            margin: 0;
+            margin: 1rem 0 0 0;
         }
         canvas {
             display: block;
@@ -177,13 +177,19 @@
     function onMouseDown(e) {
         clearSelection();
         resetBrightness();
-        let pos = convertMouseLocation(e.clientX, e.clientY);
+        console.log(e.clientX, e.clientY);
+        const canvas = document.querySelector('#webgl');
+        const rect = canvas.getBoundingClientRect();
+        let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
         selectionPoints = [pos.x, pos.y];
     }
 
     function onMouseMove(e) {
         if (selectionPoints) {
-            let pos = convertMouseLocation(e.clientX, e.clientY);
+            const canvas = document.querySelector('#webgl');
+        const rect = canvas.getBoundingClientRect();
+            let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
+            console.log(e.clientX);
             selectionPoints.push(pos.x, pos.y);
             if (selectionPoints.length == 4) {
                 selectionPointsBuffer = createBuffer(new Float32Array(selectionPoints));
@@ -202,9 +208,11 @@
     }
 
     function onMouseUp(e) {
+        const canvas = document.querySelector('#webgl');
+        const rect = canvas.getBoundingClientRect();
         if (selectionPointsBuffer &&
-            Math.abs(selectionPoints[0] * 800 - e.clientX) < 10 &&
-            Math.abs((1 - selectionPoints[1]) * 600 - e.clientY) < 10) {
+            Math.abs(selectionPoints[0] * 800 - e.clientX + rect.left) < 25 &&
+            Math.abs((1 - selectionPoints[1]) * 600 - e.clientY + rect.top) < 25) {
             selectionPoints.push(selectionPoints[0]);
             selectionPoints.push(selectionPoints[1]);
             updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
@@ -278,8 +286,6 @@
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
         buffer.elementCount = indices.length;
-        console.log(buffer.elementCount, { ...buffer
-        });
         return buffer;
     }
 
@@ -332,7 +338,6 @@
                 if (selectionAreaIndicesBuffer) {
                     gl.uniform1f(uBrightness, brightness);
                     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, selectionAreaIndicesBuffer);
-                    console.log(selectionAreaIndicesBuffer);
                     gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
                 }
 
