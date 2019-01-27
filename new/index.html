@@ -2,7 +2,6 @@
 <html>
 <head>
     <meta charset="utf-8" />
-
     <title>webgl_lasso_tool</title>
     <script src="gl-matrix.js"></script>
     <script src="earcut.min.js"></script>
@@ -111,13 +110,13 @@
                 0.3, 0.5
             ]));
             
-            selectionAreaIndicesBuffer = createIndicesBuffer(new Uint8Array([
-                0, 1, 2,
-                0, 2, 3,
-                0, 3, 4,
-                0, 4, 5,
-                0, 5, 6
-            ]));
+            // selectionAreaIndicesBuffer = createIndicesBuffer(new Uint8Array([
+            //     0, 1, 2,
+            //     0, 2, 3,
+            //     0, 3, 4,
+            //     0, 4, 5,
+            //     0, 5, 6
+            // ]));
                         
             renderLoop();
         };
@@ -191,28 +190,26 @@
             let image = new Image();
            
             image.onload = function() {
-                gl.useProgram(shaderProgram);
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
-                gl.activeTexture(gl.TEXTURE0);
+                // gl.useProgram(shaderProgram);
+                var texture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, texture);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image)
-                gl.uniform1i(sampler, 0);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
                 bgImageBuffer = createBuffer(new Float32Array([
-                    0.0, 1.0,
                     0.0, 0.0,
+                    1.0, 0.0,
+                    0.0, 1.0,
+                    0.0, 1.0,
+                    1.0, 0.0,
                     1.0, 1.0,
-                    1.0, 0.0
                 ]));
             };
             image.src = "./test.jpg";
         }
 
-        function requestCORSIfNotSameOrigin(img, url) {
-            if ((new URL(url)).origin !== window.location.origin) {
-                img.crossOrigin = "";
-            }
-        }
         
         function createBuffer(vertices) {
             let buffer = gl.createBuffer();
@@ -232,7 +229,7 @@
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
             
             buffer.elementCount = indices.length;
-            
+            console.log(buffer.elementCount, {...buffer});
             return buffer;
         }
         
@@ -273,7 +270,7 @@
         
         function renderLoop() {
             gl.clearColor(0, 0, 0, 1);
-            gl.clear(gl.COLOR_BUFFER_BIT| gl.DEPTH_BUFFER_BIT);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             if (bgImageBuffer != null) {
                 gl.useProgram(shaderProgram);
                 gl.uniform1f(uBrightness, 0.0);
@@ -285,7 +282,8 @@
                     if (selectionAreaIndicesBuffer) {
                         gl.uniform1f(uBrightness, 0.3);
                         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, selectionAreaIndicesBuffer);
-                        gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
+                        console.log();
+                        // gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
                     }
                     
                     // draw lines
@@ -294,6 +292,7 @@
                 }
             }
             window.setTimeout(renderLoop, 1000/60);
+            
         }
     </script>
 </head>
