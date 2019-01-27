@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="utf-8" />
     <title>webgl_lasso_tool</title>
     <script src="gl-matrix.js"></script>
     <script src="earcut.min.js"></script>
     <script src="http://d3js.org/d3.v3.min.js"></script>
-    <script src="http://axc.net/code_libraries/lasso/lasso.min.js"></script>
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
+
     <script>
         var gl = null;
         var shaderProgram = null;
@@ -16,23 +18,25 @@
         glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
         var bgImageBuffer = null;
         var uBrightness;
-        
+        let brightness = 0.0;
+
         var selectionPointsBuffer;
         var selectionAreaIndicesBuffer;
-        
+
         window.onload = function () {
             let canvas = document.getElementById('webgl');
             canvas.onmousedown = onMouseDown;
             canvas.onmousemove = onMouseMove;
             canvas.onmouseup = onMouseUp;
-            
+
             gl = canvas.getContext('webgl');
             if (!gl) {
                 console.log("get webgl context failed!");
                 return;
             }
-            
-            let VSHADER_SOURCE = `
+
+            let VSHADER_SOURCE =
+                `
             precision lowp float;
             attribute vec4 aPosition;
             uniform mat4 uModelViewMatrix;
@@ -42,25 +46,27 @@
                 gl_Position = uProjectionMatrix * uModelViewMatrix * aPosition;
             }
             `;
-            
-            let FSHADER_SOURCE = `
+
+            let FSHADER_SOURCE =
+                `
             precision lowp float;
             
             void main() {
                 gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
             }
             `;
-            
+
             lineProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
             gl.useProgram(lineProgram);
-            
+
             let uProjectionMatrix = gl.getUniformLocation(lineProgram, "uProjectionMatrix");
             gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
-            
+
             let uModelViewMatrix = gl.getUniformLocation(lineProgram, "uModelViewMatrix");
             gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
-                        
-            VSHADER_SOURCE = `
+
+            VSHADER_SOURCE =
+                `
             attribute vec4 aPosition;
             attribute vec2 aVertexUV;
             uniform mat4 uModelViewMatrix;
@@ -72,8 +78,9 @@
                 uv = aVertexUV;
             }
             `;
-            
-            FSHADER_SOURCE = `
+
+            FSHADER_SOURCE =
+                `
             precision lowp float;
             uniform float brightness;
             uniform sampler2D texture;
@@ -87,29 +94,38 @@
             `;
             shaderProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
             gl.useProgram(shaderProgram);
-            
+
             uProjectionMatrix = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
             gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
-            
+
             uModelViewMatrix = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
             gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
-            
+
             uBrightness = gl.getUniformLocation(shaderProgram, "brightness");
-            
+
             gl.disable(gl.DEPTH_TEST);
-            
+
+            webglLessonsUI.setupSlider("#brightness", {
+                value: brightness,
+                slide: updateBrightness(0),
+                max: 1,
+                min: -1,
+                step: 0.01,
+                precision: 2
+            });
+
             initTexture();
-            
-            selectionPointsBuffer = createBuffer(new Float32Array([
-                0.3, 0.5,
-                0.4, 0.7,
-                0.5, 0.75,
-                0.6, 0.65,
-                0.7, 0.5,
-                0.5, 0.2,
-                0.3, 0.5
-            ]));
-            
+
+            // selectionPointsBuffer = createBuffer(new Float32Array([
+            //     0.3, 0.5,
+            //     0.4, 0.7,
+            //     0.5, 0.75,
+            //     0.6, 0.65,
+            //     0.7, 0.5,
+            //     0.5, 0.2,
+            //     0.3, 0.5
+            // ]));
+
             // selectionAreaIndicesBuffer = createIndicesBuffer(new Uint8Array([
             //     0, 1, 2,
             //     0, 2, 3,
@@ -117,22 +133,31 @@
             //     0, 4, 5,
             //     0, 5, 6
             // ]));
-                        
+
             renderLoop();
         };
-        
+
         var selectionPoints = null;
-        
-        function convertMouseLocation(x, y) {
-            return {x: x / 800, y: (1 - y / 600)};
+
+        function updateBrightness() {
+            return function (event, ui) {
+                brightness = ui.value;
+            };
         }
-        
+
+        function convertMouseLocation(x, y) {
+            return {
+                x: x / 800,
+                y: (1 - y / 600)
+            };
+        }
+
         function onMouseDown(e) {
             clearSelection();
             let pos = convertMouseLocation(e.clientX, e.clientY);
             selectionPoints = [pos.x, pos.y];
         }
-        
+
         function onMouseMove(e) {
             if (selectionPoints) {
                 let pos = convertMouseLocation(e.clientX, e.clientY);
@@ -152,11 +177,11 @@
                 }
             }
         }
-        
+
         function onMouseUp(e) {
-            if (selectionPointsBuffer
-                && Math.abs(selectionPoints[0] * 800 - e.clientX) < 10
-                && Math.abs((1 - selectionPoints[1]) * 600 - e.clientY) < 10) {
+            if (selectionPointsBuffer &&
+                Math.abs(selectionPoints[0] * 800 - e.clientX) < 10 &&
+                Math.abs((1 - selectionPoints[1]) * 600 - e.clientY) < 10) {
                 selectionPoints.push(selectionPoints[0]);
                 selectionPoints.push(selectionPoints[1]);
                 updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
@@ -165,31 +190,31 @@
             }
             selectionPoints = null;
         }
-        
+
         function createProgram(vertex_source, frag_source) {
             let vertexShader = gl.createShader(gl.VERTEX_SHADER);
             gl.shaderSource(vertexShader, vertex_source);
             gl.compileShader(vertexShader);
-            
+
             let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(fragmentShader, frag_source);
             gl.compileShader(fragmentShader);
-            
+
             let shaderProgram = gl.createProgram();
             gl.attachShader(shaderProgram, vertexShader);
             gl.attachShader(shaderProgram, fragmentShader);
             gl.linkProgram(shaderProgram);
-            
+
             return shaderProgram;
         }
-        
+
         function initTexture() {
             let texture = gl.createTexture();
             let sampler = gl.getUniformLocation(shaderProgram, "texture");
-            
+
             let image = new Image();
-           
-            image.onload = function() {
+
+            image.onload = function () {
                 // gl.useProgram(shaderProgram);
                 var texture = gl.createTexture();
                 gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -210,64 +235,65 @@
             image.src = "./test.jpg";
         }
 
-        
+
         function createBuffer(vertices) {
             let buffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
             gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-            
+
             buffer.elementSize = vertices.BYTES_PER_ELEMENT;
             buffer.elementCount = vertices.length / 2;
-            
+
             return buffer;
         }
-        
+
         function createIndicesBuffer(indices) {
             let buffer = gl.createBuffer();
-            
+
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-            
+
             buffer.elementCount = indices.length;
-            console.log(buffer.elementCount, {...buffer});
+            console.log(buffer.elementCount, { ...buffer
+            });
             return buffer;
         }
-        
+
         function useBuffer(buffer) {
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
             let elementSize = buffer.elementSize;
             let aPosition = gl.getAttribLocation(shaderProgram, "aPosition");
-            gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, elementSize*2, 0);
+            gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, elementSize * 2, 0);
             gl.enableVertexAttribArray(aPosition);
             let aVertexUV = gl.getAttribLocation(shaderProgram, "aVertexUV");
-            gl.vertexAttribPointer(aVertexUV, 2, gl.FLOAT, false, elementSize*2, 0);
+            gl.vertexAttribPointer(aVertexUV, 2, gl.FLOAT, false, elementSize * 2, 0);
             gl.enableVertexAttribArray(aVertexUV);
         }
-        
+
         function updateBufferData(buffer, vertices) {
             gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
             gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
             buffer.elementCount = vertices.length / 2;
         }
-        
+
         function updateIndicesBufferData(buffer, indices) {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
             buffer.elementCount = indices.length;
         }
-        
+
         function clearSelection() {
             if (selectionPointsBuffer) {
                 gl.deleteBuffer(selectionPointsBuffer);
                 selectionPointsBuffer = null;
             }
-            
+
             if (selectionAreaIndicesBuffer) {
                 gl.deleteBuffer(selectionAreaIndicesBuffer);
                 selectionAreaIndicesBuffer = null;
             }
         }
-        
+
         function renderLoop() {
             gl.clearColor(0, 0, 0, 1);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -280,23 +306,30 @@
                     // draw highlights
                     useBuffer(selectionPointsBuffer);
                     if (selectionAreaIndicesBuffer) {
-                        gl.uniform1f(uBrightness, 0.3);
+                        gl.uniform1f(uBrightness, brightness);
                         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, selectionAreaIndicesBuffer);
-                        console.log();
-                        // gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
+                        console.log(selectionAreaIndicesBuffer);
+                        gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
                     }
-                    
+
                     // draw lines
                     gl.useProgram(lineProgram);
                     gl.drawArrays(gl.LINE_STRIP, 0, selectionPointsBuffer.elementCount);
                 }
             }
-            window.setTimeout(renderLoop, 1000/60);
-            
+            window.setTimeout(renderLoop, 1000 / 60);
+
         }
     </script>
 </head>
+
 <body>
     <canvas id="webgl" width="800" height="600"></canvas>
+    <div id="uiContainer">
+        <div id="ui">
+            <div id="brightness"></div>
+        </div>
+    </div>
 </body>
+
 </html>
