@@ -70,7 +70,7 @@
         <div class='panel'>
             <form  method="post" action="/image" enctype="multipart/form-data">
                 <label for="picture">Choose a picture:</label>
-                <input type="file" id="picture" name="picture" accept="image/jpg, image/jpeg, image/png">
+                <input type="file" id="picture" name="picture" accept="image/jpg">
                 <button type='submit'>Submit</button>
             </form>
             <h3>
@@ -80,7 +80,7 @@
                 </p>
             </h3>
 
-            <input type="range" min="-1" max="1" value="0" step='0.01' oninput="updateBrightness(this.value)" />
+            <input id='slider' type="range" min="-1" max="1" value="0" step='0.01' oninput="updateBrightness(this.value)" />
             <button id="reset" onclick="resetBrightness()">
                 Reset
             </button>
@@ -100,7 +100,7 @@
 
     let modelViewMatrix = glMatrix.mat4.create();
     let projectionMatrix = glMatrix.mat4.create();
-    glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
+    glMatrix.mat4.ortho(projectionMatrix, 1, 0, 1, 0, -100, 100);
     let bgImageBuffer = null;
     let uBrightness;
     let brightness = 0.0;
@@ -199,8 +199,8 @@
 
     function convertMouseLocation(x, y) {
         return {
-            x: x / 800,
-            y: (1 - y / 600)
+            x: (x / 800),
+            y: (y / 600)
         };
     }
 
@@ -388,7 +388,7 @@
     function resetBrightness() {
         brightness = 0.0;
         updateBrightness("0.00");
-        document.querySelector('input').value = 0.00;
+        document.querySelector('#slider').value = 0.00;
     }
 </script>
 
