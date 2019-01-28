@@ -41,11 +41,11 @@
     </style>
 </head>
 
-<body>
+<body onload='main()'>
     <canvas id="webgl" width="800" height="600"></canvas>
     <div class='panel'>
         <h3>
-            Brightness: 
+            Brightness:
             <p id='brightness'>
                 0.00
             </p>
@@ -56,41 +56,40 @@
             Reset
         </button>
     </div>
+    <!-- <script src="../public/gl-matrix.js"></script> -->
+    <!-- <script src="./earcut.min.js"></script> -->
+    <script src="https://webglfundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
 
-</body>
+    <script>
+        let gl = null;
+        let shaderProgram = null;
+        let lineProgram = null;
 
-<script src="gl-matrix.js"></script>
-<script src="earcut.min.js"></script>
-<script src="https://webglfundamentals.org/webgl/resources/webgl-lessons-ui.js"></script>
+        let modelViewMatrix = glMatrix.mat4.create();
+        let projectionMatrix = glMatrix.mat4.create();
+        glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
+        let bgImageBuffer = null;
+        let uBrightness;
+        let brightness = 0.0;
 
-<script>
-    var gl = null;
-    var shaderProgram = null;
-    var lineProgram = null;
-    var modelViewMatrix = glMatrix.mat4.create();
-    var projectionMatrix = glMatrix.mat4.create();
-    glMatrix.mat4.ortho(projectionMatrix, 0, 1, 0, 1, -100, 100);
-    var bgImageBuffer = null;
-    var uBrightness;
-    let brightness = 0.0;
+        let selectionPointsBuffer;
+        let selectionAreaIndicesBuffer;
 
-    var selectionPointsBuffer;
-    var selectionAreaIndicesBuffer;
+        function main() {
+            const canvas = document.getElementById('webgl');
 
-    window.onload = function () {
-        let canvas = document.getElementById('webgl');
-        canvas.onmousedown = onMouseDown;
-        canvas.onmousemove = onMouseMove;
-        canvas.onmouseup = onMouseUp;
+            canvas.onmousedown = onMouseDown;
+            canvas.onmousemove = onMouseMove;
+            canvas.onmouseup = onMouseUp;
 
-        gl = canvas.getContext('webgl');
-        if (!gl) {
-            console.log("get webgl context failed!");
-            return;
-        }
+            gl = canvas.getContext('webgl');
+            if (!gl) {
+                console.log("get webgl context failed!");
+                return;
+            }
 
-        let VSHADER_SOURCE =
-            `
+            let VSHADER_SOURCE =
+                `
         precision lowp float;
         attribute vec4 aPosition;
         uniform mat4 uModelViewMatrix;
@@ -101,8 +100,8 @@
         }
         `;
 
-        let FSHADER_SOURCE =
-            `
+            let FSHADER_SOURCE =
+                `
         precision lowp float;
         
         void main() {
@@ -110,17 +109,17 @@
         }
         `;
 
-        lineProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
-        gl.useProgram(lineProgram);
+            lineProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
+            gl.useProgram(lineProgram);
 
-        let uProjectionMatrix = gl.getUniformLocation(lineProgram, "uProjectionMatrix");
-        gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
+            let uProjectionMatrix = gl.getUniformLocation(lineProgram, "uProjectionMatrix");
+            gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
 
-        let uModelViewMatrix = gl.getUniformLocation(lineProgram, "uModelViewMatrix");
-        gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
+            let uModelViewMatrix = gl.getUniformLocation(lineProgram, "uModelViewMatrix");
+            gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
 
-        VSHADER_SOURCE =
-            `
+            VSHADER_SOURCE =
+                `
         attribute vec4 aPosition;
         attribute vec2 aVertexUV;
         uniform mat4 uModelViewMatrix;
@@ -133,8 +132,8 @@
         }
         `;
 
-        FSHADER_SOURCE =
-            `
+            FSHADER_SOURCE =
+                `
         precision lowp float;
         uniform float brightness;
         uniform sampler2D texture;
@@ -146,222 +145,221 @@
             gl_FragColor = vec4(color + vec3(brightness, brightness, brightness), 1.0);
         }
         `;
-        shaderProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
-        gl.useProgram(shaderProgram);
-
-        uProjectionMatrix = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
-        gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
-
-        uModelViewMatrix = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
-        gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
-
-        uBrightness = gl.getUniformLocation(shaderProgram, "brightness");
-
-        gl.disable(gl.DEPTH_TEST);
-
-        initTexture();
-
-        renderLoop();
-    };
-
-    var selectionPoints = null;
-
-
-    function convertMouseLocation(x, y) {
-        return {
-            x: x / 800,
-            y: (1 - y / 600)
-        };
-    }
-
-    function onMouseDown(e) {
-        clearSelection();
-        resetBrightness();
-        console.log(e.clientX, e.clientY);
-        const canvas = document.querySelector('#webgl');
-        const rect = canvas.getBoundingClientRect();
-        let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
-        selectionPoints = [pos.x, pos.y];
-    }
-
-    function onMouseMove(e) {
-        if (selectionPoints) {
-            const canvas = document.querySelector('#webgl');
-        const rect = canvas.getBoundingClientRect();
-            let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
-            console.log(e.clientX);
-            selectionPoints.push(pos.x, pos.y);
-            if (selectionPoints.length == 4) {
-                selectionPointsBuffer = createBuffer(new Float32Array(selectionPoints));
-            } else if (selectionPoints.length > 4) {
-                updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
-            }
-            if (selectionPoints.length >= 6) {
-                let triangles = earcut(selectionPoints);
-                if (!selectionAreaIndicesBuffer) {
-                    selectionAreaIndicesBuffer = createIndicesBuffer(new Uint8Array(triangles));
-                } else {
-                    updateIndicesBufferData(selectionAreaIndicesBuffer, new Uint8Array(triangles));
-                }
-            }
-        }
-    }
-
-    function onMouseUp(e) {
-        const canvas = document.querySelector('#webgl');
-        const rect = canvas.getBoundingClientRect();
-        if (selectionPointsBuffer &&
-            Math.abs(selectionPoints[0] * 800 - e.clientX + rect.left) < 25 &&
-            Math.abs((1 - selectionPoints[1]) * 600 - e.clientY + rect.top) < 25) {
-            selectionPoints.push(selectionPoints[0]);
-            selectionPoints.push(selectionPoints[1]);
-            updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
-        } else {
-            clearSelection();
-        }
-        selectionPoints = null;
-
-    }
-
-    function createProgram(vertex_source, frag_source) {
-        let vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, vertex_source);
-        gl.compileShader(vertexShader);
-
-        let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, frag_source);
-        gl.compileShader(fragmentShader);
-
-        let shaderProgram = gl.createProgram();
-        gl.attachShader(shaderProgram, vertexShader);
-        gl.attachShader(shaderProgram, fragmentShader);
-        gl.linkProgram(shaderProgram);
-
-        return shaderProgram;
-    }
-
-    function initTexture() {
-        let texture = gl.createTexture();
-        let sampler = gl.getUniformLocation(shaderProgram, "texture");
-
-        let image = new Image();
-
-        image.onload = function () {
-            // gl.useProgram(shaderProgram);
-            var texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-            bgImageBuffer = createBuffer(new Float32Array([
-                0.0, 0.0,
-                1.0, 0.0,
-                0.0, 1.0,
-                0.0, 1.0,
-                1.0, 0.0,
-                1.0, 1.0,
-            ]));
-        };
-        image.src = "./test.jpg";
-    }
-
-
-    function createBuffer(vertices) {
-        let buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-        buffer.elementSize = vertices.BYTES_PER_ELEMENT;
-        buffer.elementCount = vertices.length / 2;
-
-        return buffer;
-    }
-
-    function createIndicesBuffer(indices) {
-        let buffer = gl.createBuffer();
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-        buffer.elementCount = indices.length;
-        return buffer;
-    }
-
-    function useBuffer(buffer) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        let elementSize = buffer.elementSize;
-        let aPosition = gl.getAttribLocation(shaderProgram, "aPosition");
-        gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, elementSize * 2, 0);
-        gl.enableVertexAttribArray(aPosition);
-        let aVertexUV = gl.getAttribLocation(shaderProgram, "aVertexUV");
-        gl.vertexAttribPointer(aVertexUV, 2, gl.FLOAT, false, elementSize * 2, 0);
-        gl.enableVertexAttribArray(aVertexUV);
-    }
-
-    function updateBufferData(buffer, vertices) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-        buffer.elementCount = vertices.length / 2;
-    }
-
-    function updateIndicesBufferData(buffer, indices) {
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-        buffer.elementCount = indices.length;
-    }
-
-    function clearSelection() {
-        if (selectionPointsBuffer) {
-            gl.deleteBuffer(selectionPointsBuffer);
-            selectionPointsBuffer = null;
-        }
-
-        if (selectionAreaIndicesBuffer) {
-            gl.deleteBuffer(selectionAreaIndicesBuffer);
-            selectionAreaIndicesBuffer = null;
-        }
-    }
-
-    function renderLoop() {
-        gl.clearColor(0, 0, 0, 1);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        if (bgImageBuffer != null) {
+            shaderProgram = createProgram(VSHADER_SOURCE, FSHADER_SOURCE);
             gl.useProgram(shaderProgram);
-            gl.uniform1f(uBrightness, 0.0);
-            useBuffer(bgImageBuffer);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, bgImageBuffer.elementCount);
-            if (selectionPointsBuffer) {
-                // draw highlights
-                useBuffer(selectionPointsBuffer);
-                if (selectionAreaIndicesBuffer) {
-                    gl.uniform1f(uBrightness, brightness);
-                    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, selectionAreaIndicesBuffer);
-                    gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
-                }
 
-                // draw lines
-                gl.useProgram(lineProgram);
-                gl.drawArrays(gl.LINE_STRIP, 0, selectionPointsBuffer.elementCount);
+            uProjectionMatrix = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+            gl.uniformMatrix4fv(uProjectionMatrix, false, projectionMatrix);
+
+            uModelViewMatrix = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+            gl.uniformMatrix4fv(uModelViewMatrix, false, modelViewMatrix);
+
+            uBrightness = gl.getUniformLocation(shaderProgram, "brightness");
+
+            initTexture();
+
+            renderLoop();
+        };
+
+        let selectionPoints = null;
+
+
+        function convertMouseLocation(x, y) {
+            return {
+                x: x / 800,
+                y: (1 - y / 600)
+            };
+        }
+
+        function onMouseDown(e) {
+            clearSelection();
+            resetBrightness();
+            const canvas = document.querySelector('#webgl');
+            const rect = canvas.getBoundingClientRect();
+            let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
+            selectionPoints = [pos.x, pos.y];
+        }
+
+        function onMouseMove(e) {
+            if (selectionPoints) {
+                const canvas = document.querySelector('#webgl');
+                const rect = canvas.getBoundingClientRect();
+                let pos = convertMouseLocation(e.clientX - rect.left, e.clientY - rect.top);
+                selectionPoints.push(pos.x, pos.y);
+                if (selectionPoints.length == 4) {
+                    selectionPointsBuffer = createBuffer(new Float32Array(selectionPoints));
+                } else if (selectionPoints.length > 4) {
+                    updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
+                }
+                if (selectionPoints.length >= 6) {
+                    let triangles = earcut(selectionPoints);
+                    if (!selectionAreaIndicesBuffer) {
+                        selectionAreaIndicesBuffer = createIndicesBuffer(new Uint8Array(triangles));
+                    } else {
+                        updateIndicesBufferData(selectionAreaIndicesBuffer, new Uint8Array(triangles));
+                    }
+                }
             }
         }
-        window.setTimeout(renderLoop, 1000 / 60);
 
-    }
+        function onMouseUp(e) {
+            const canvas = document.querySelector('#webgl');
+            const rect = canvas.getBoundingClientRect();
+            if (selectionPointsBuffer &&
+                Math.abs(selectionPoints[0] * 800 - e.clientX + rect.left) < 25 &&
+                Math.abs((1 - selectionPoints[1]) * 600 - e.clientY + rect.top) < 25) {
+                selectionPoints.push(selectionPoints[0]);
+                selectionPoints.push(selectionPoints[1]);
+                updateBufferData(selectionPointsBuffer, new Float32Array(selectionPoints));
+            } else {
+                clearSelection();
+            }
+            selectionPoints = null;
 
-    function updateBrightness(value) {
-        brightness = value;
-        document.querySelector('#brightness').innerHTML = value;
+        }
 
-    }
+        function createProgram(vertex_source, frag_source) {
+            let vertexShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, vertex_source);
+            gl.compileShader(vertexShader);
+
+            let fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, frag_source);
+            gl.compileShader(fragmentShader);
+
+            let shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            return shaderProgram;
+        }
+
+        function initTexture() {
+            let texture = gl.createTexture();
+            let sampler = gl.getUniformLocation(shaderProgram, "texture");
+
+            let image = new Image();
+
+            image.onload = function () {
+                // gl.useProgram(shaderProgram);
+                var texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+                bgImageBuffer = createBuffer(new Float32Array([
+                    0.0, 0.0,
+                    1.0, 0.0,
+                    0.0, 1.0,
+                    0.0, 1.0,
+                    1.0, 0.0,
+                    1.0, 1.0,
+                ]));
+            };
+            image.src = "./test.jpg";
+        }
 
 
-    function resetBrightness() {
-        brightness = 0.0;
-        updateBrightness("0.00");
-        document.querySelector('input').value = 0.00;
-    }
-</script>
+        function createBuffer(vertices) {
+            let buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+            buffer.elementSize = vertices.BYTES_PER_ELEMENT;
+            buffer.elementCount = vertices.length / 2;
+
+            return buffer;
+        }
+
+        function createIndicesBuffer(indices) {
+            let buffer = gl.createBuffer();
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+            buffer.elementCount = indices.length;
+            return buffer;
+        }
+
+        function useBuffer(buffer) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            let elementSize = buffer.elementSize;
+            let aPosition = gl.getAttribLocation(shaderProgram, "aPosition");
+            gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, elementSize * 2, 0);
+            gl.enableVertexAttribArray(aPosition);
+            let aVertexUV = gl.getAttribLocation(shaderProgram, "aVertexUV");
+            gl.vertexAttribPointer(aVertexUV, 2, gl.FLOAT, false, elementSize * 2, 0);
+            gl.enableVertexAttribArray(aVertexUV);
+        }
+
+        function updateBufferData(buffer, vertices) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+            buffer.elementCount = vertices.length / 2;
+        }
+
+        function updateIndicesBufferData(buffer, indices) {
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+            buffer.elementCount = indices.length;
+        }
+
+        function clearSelection() {
+            if (selectionPointsBuffer) {
+                gl.deleteBuffer(selectionPointsBuffer);
+                selectionPointsBuffer = null;
+            }
+
+            if (selectionAreaIndicesBuffer) {
+                gl.deleteBuffer(selectionAreaIndicesBuffer);
+                selectionAreaIndicesBuffer = null;
+            }
+        }
+
+        function renderLoop() {
+            gl.clearColor(0, 0, 0, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            if (bgImageBuffer != null) {
+                gl.useProgram(shaderProgram);
+                gl.uniform1f(uBrightness, 0.0);
+                useBuffer(bgImageBuffer);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, bgImageBuffer.elementCount);
+                if (selectionPointsBuffer) {
+                    // draw highlights
+                    useBuffer(selectionPointsBuffer);
+                    if (selectionAreaIndicesBuffer) {
+                        gl.uniform1f(uBrightness, brightness);
+                        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, selectionAreaIndicesBuffer);
+                        gl.drawElements(gl.TRIANGLES, selectionAreaIndicesBuffer.elementCount, gl.UNSIGNED_BYTE, 0);
+                    }
+
+                    // draw lines
+                    gl.useProgram(lineProgram);
+                    gl.drawArrays(gl.LINE_STRIP, 0, selectionPointsBuffer.elementCount);
+                }
+            }
+            window.setTimeout(renderLoop, 10); // 10ms 
+
+        }
+
+        function updateBrightness(value) {
+            brightness = value;
+            document.querySelector('#brightness').innerHTML = value;
+
+        }
+
+        function resetBrightness() {
+            brightness = 0.0;
+            updateBrightness("0.00");
+            document.querySelector('input').value = 0.00;
+        }
+    </script>
+</body>
+
+
 
 </html>
