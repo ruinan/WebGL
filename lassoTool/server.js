@@ -38,7 +38,6 @@ app.post('/image', (req, res) => {
     // Use the mv() method to place the file somewhere on your server
     sampleFile.mv(`./public/images/test.jpg`, function(err) {
         if (err) return res.status(500).send(err);
-
         res.redirect('/');
     });
 });
